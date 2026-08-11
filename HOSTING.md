@@ -1,42 +1,57 @@
-# Hosting GPT Usage
+# GPT Usage ?몄뒪???덈궡
 
-GPT Usage supports a maintainer-operated default service and self-hosted deployments. Both use the same plugin and MCP implementation.
+GPT Usage???댁쁺?먭? ?쒓났?섎뒗 湲곕낯 ?쒕쾭? ?ъ슜?먭? 吏곸젒 ?댁쁺?섎뒗 ????몄뒪?낆쓣 吏?먰빀?덈떎. ??諛⑹떇 紐⑤몢 媛숈? ?뚮윭洹몄씤怨?MCP 肄붾뱶瑜??ъ슜?⑸땲??
 
-## Default hosting
+## 湲곕낯 ?몄뒪???ъ슜
 
-Default hosting is intended for people who want to install the plugin and connect from ChatGPT without operating infrastructure.
+### 1. ?뚮윭洹몄씤 ?ㅼ튂
 
-1. Install the published GPT Usage plugin.
-2. Authorize the plugin through its OAuth connection flow.
-3. Ask GPT Usage to connect Codex.
-4. Open the returned OpenAI device URL and enter the one-time code.
-5. Ask GPT Usage to check the connection, then call `get_usage`.
+```bash
+codex plugin marketplace add wwhambug/GptUsageSkill
+codex plugin add gpt-usage@gpt-usage
+```
 
-The OAuth token identifies the user to GPT Usage. A hash of its stable `sub` claim selects a dedicated persistent Vercel Sandbox. Codex login state is stored in that sandbox, not in the ChatGPT Work execution container.
+ChatGPT ?곗뒪?ы넲 ?깆쓣 ?ㅼ떆 ?쒖옉?섍퀬 ????붾? ?ъ꽭?? ?ㅼ튂???뚮윭洹몄씤? 媛숈? 怨꾩젙??ChatGPT Work ?? ?곗뒪?ы넲, 紐⑤컮?쇱뿉???ъ슜?????덉뒿?덈떎.
 
-Default hosting properties:
+### 2. Codex 怨꾩젙 ?곌껐
 
-- no computer needs to remain online
-- mobile Work container IP and filesystem changes do not matter
-- one isolated persistent Sandbox per OAuth subject
-- 90-day inactive snapshot retention in the current configuration
-- the maintainer controls the Vercel project and Sandbox infrastructure
+1. ?쏥PT Usage濡?Codex ?곌껐?댁쨾?앸씪怨??붿껌?⑸땲??
+2. 諛섑솚??OpenAI 湲곌린 ?몄쬆 二쇱냼瑜??쎈땲??
+3. ?쇳쉶??肄붾뱶瑜??낅젰?⑸땲??
+4. ?쒖뿰寃??곹깭 ?뺤씤?댁쨾?앸씪怨??붿껌?⑸땲??
+5. ?쒕궡 Work/Codex ?ъ슜???뺤씤?댁쨾?앸씪怨??붿껌?⑸땲??
 
-Users should call `disconnect_codex` before abandoning the service. The operator must also provide account deletion, sandbox deletion, incident response, privacy policy, and credential-rotation procedures before public launch.
+?뚮윭洹몄씤 OAuth ?좏겙???덉젙?곸씤 `sub` 媛믪쓣 ?댁떆?섏뿬 ?ъ슜???꾩슜 Vercel Sandbox瑜??좏깮?⑸땲?? Codex 濡쒓렇?몄? ?꾩떆 Work 而⑦뀒?대꼫媛 ?꾨땲????Sandbox????λ맗?덈떎.
 
-## Self-hosting on Vercel
+湲곕낯 ?몄뒪?낆쓽 ?뱀꽦:
 
-Self-hosting keeps the MCP service and persistent Codex sandbox under the user's own Vercel account.
+- 而댄벂?곕? 怨꾩냽 耳쒕몮 ?꾩슂媛 ?놁쓬
+- 紐⑤컮??Work 而⑦뀒?대꼫??IP? ?뚯씪?쒖뒪?쒖씠 諛붾뚯뼱???곹뼢 ?놁쓬
+- OAuth ?ъ슜?먮퀎 寃⑸━ Sandbox ?ъ슜
+- ?꾩옱 ?ㅼ젙??鍮꾪솢??Sandbox ?ㅻ깄?룹쓣 理쒕? 90???좎?
+- Vercel ?꾨줈?앺듃? Sandbox??GPT Usage ?댁쁺?먭? 愿由?
+?쒕퉬???ъ슜??以묐떒???뚮뒗 `disconnect_codex`瑜??몄텧??濡쒓렇?몄쓣 ??젣?섏꽭??
 
-### 1. Configure an OAuth authorization server
+## ????몄뒪??
+????몄뒪?낆? MCP ?쒕쾭? Codex Sandbox瑜??먯떊??Vercel 怨꾩젙?먯꽌 愿由ы븯??諛⑹떇?낅땲??
 
-The production MCP endpoint requires OAuth. Auth0 is the current reference configuration.
+### 1. ??μ냼 以鍮?
+```bash
+git clone https://github.com/wwhambug/GptUsageSkill.git
+cd GptUsageSkill
+npm install
+```
 
-Create an Auth0 API with an audience equal to your public deployment URL, then configure an Auth0 application for the ChatGPT connector. The authorization server must expose standard OIDC/OAuth metadata and JWKS endpoints. Register the redirect URL shown by the ChatGPT plugin builder.
+### 2. OAuth ?쒕쾭 ?ㅼ젙
 
-### 2. Configure Vercel
+?댁쁺 MCP??OAuth ?몄쬆???꾩슂?섎ŉ ?꾩옱 湲곗? 援ы쁽? Auth0瑜??ъ슜?⑸땲??
 
-Set these environment variables in Preview and Production:
+1. Auth0?먯꽌 諛고룷 二쇱냼瑜?audience濡??ъ슜?섎뒗 API瑜?留뚮벊?덈떎.
+2. ChatGPT ?뚮윭洹몄씤 ?곌껐??Auth0 ?좏뵆由ъ??댁뀡??留뚮벊?덈떎.
+3. ChatGPT媛 ?쒖떆?섎뒗 肄쒕갚 二쇱냼瑜?Auth0 Allowed Callback URLs???깅줉?⑸땲??
+4. OIDC 硫뷀??곗씠?곗? JWKS 二쇱냼媛 ?몃??먯꽌 ?묎렐 媛?ν븳吏 ?뺤씤?⑸땲??
+
+### 3. Vercel ?섍꼍蹂???ㅼ젙
 
 ```text
 PEAK_AUTH_MODE=auth0
@@ -45,20 +60,20 @@ AUTH0_ISSUER=https://your-tenant.auth0.com/
 AUTH0_AUDIENCE=https://your-project.vercel.app
 ```
 
-Vercel Sandbox authentication uses project OIDC automatically in production. Local Sandbox testing additionally requires Vercel project linkage and pulled development credentials.
+`PEAK_PUBLIC_URL`? ?앸왂?????덉뒿?덈떎. ?앸왂?섎㈃ Vercel???꾨줈?뺤뀡 ?꾨찓?몄쓣 ?먮룞?쇰줈 ?ъ슜?⑸땲??
 
-### 3. Deploy
+Vercel Sandbox???댁쁺 ?섍꼍?먯꽌 ?꾨줈?앺듃 OIDC瑜??먮룞 ?ъ슜?⑸땲?? 濡쒖뺄?먯꽌 Sandbox源뚯? ?쒗뿕?섎젮硫?Vercel ?꾨줈?앺듃 ?곌껐怨?媛쒕컻???몄쬆?뺣낫媛 異붽?濡??꾩슂?⑸땲??
 
-```text
-npm install
+### 4. 寃??諛?諛고룷
+
+```bash
 npm run typecheck
 npm run build
 vercel deploy --prod
 ```
 
-### 4. Point the plugin at the deployment
-
-Change `plugin/gpt-usage/.mcp.json`:
+### 5. ????몄뒪??二쇱냼濡??뚮윭洹몄씤 蹂寃?
+`plugins/gpt-usage/.mcp.json`???섏젙?⑸땲??
 
 ```json
 {
@@ -71,30 +86,43 @@ Change `plugin/gpt-usage/.mcp.json`:
 }
 ```
 
-Package or install that plugin build, connect OAuth, and call `connect_codex` once.
+?섏젙????μ냼瑜??먯떊??GitHub ??μ냼???щ┛ ???ㅼ튂?⑸땲??
 
-## Local development
+```bash
+codex plugin marketplace add YOUR_GITHUB_ID/YOUR_REPOSITORY
+codex plugin add gpt-usage@gpt-usage
+```
 
-For a single trusted local client, OAuth verification can be replaced temporarily with a shared bearer secret:
+?대? 媛숈? ?대쫫??留덉폆?뚮젅?댁뒪瑜?異붽??덈떎硫?癒쇱? 理쒖떊 ?댁슜??媛?몄샃?덈떎.
+
+```bash
+codex plugin marketplace upgrade gpt-usage
+codex plugin add gpt-usage@gpt-usage
+```
+
+ChatGPT ?곗뒪?ы넲 ?깆쓣 ?ㅼ떆 ?쒖옉?섍퀬 ????붿뿉???곌껐???쒗뿕?섏꽭??
+
+## 濡쒖뺄 媛쒕컻
+
+?좊ː?????덈뒗 ?⑥씪 濡쒖뺄 ?대씪?댁뼵?몄뿉?쒕뒗 OAuth ????꾩떆 怨듭쑀 鍮꾨??ㅻ? ?ъ슜?????덉뒿?덈떎.
 
 ```text
 PEAK_AUTH_MODE=shared-secret
-PEAK_SHARED_SECRET=use-a-long-random-value
-```
+PEAK_SHARED_SECRET=異⑸텇??湲??꾩쓽??臾몄옄??```
 
-Shared-secret mode is not suitable for a public ChatGPT plugin and must not be used for multi-user hosting.
+怨듭쑀 鍮꾨???諛⑹떇? 怨듦컻 ?뚮윭洹몄씤?대굹 ?ㅼ쨷 ?ъ슜???쒕쾭???ъ슜?섎㈃ ???⑸땲??
 
-## Data and trust boundaries
+## ?곗씠?곗? ?좊ː 寃쎄퀎
 
-The MCP server stores no copied `auth.json` in its own Function filesystem or database. Codex writes and refreshes its own credentials inside the persistent Sandbox selected for that user. The Sandbox filesystem is infrastructure controlled by the Vercel project owner.
+MCP ?쒕쾭??Function ?뚯씪?쒖뒪?쒖씠??蹂꾨룄 ?곗씠?곕쿋?댁뒪??`auth.json`??蹂듭궗?섏? ?딆뒿?덈떎. Codex媛 ?ъ슜?먮퀎 Sandbox ?덉뿉???먯껜 ?몄쬆?뺣낫瑜?湲곕줉?섍퀬 媛깆떊?⑸땲??
 
-Self-hosting reduces trust in the GPT Usage maintainer but does not remove trust in Vercel and OpenAI. Default hosting additionally requires trusting the GPT Usage operator to secure project access, logs, deployment credentials, OAuth configuration, and sandbox lifecycle operations.
+????몄뒪?낆? GPT Usage ?댁쁺?먮? ?좊ː???꾩슂瑜?以꾩씠吏留?Vercel怨?OpenAI??????좊ː???⑥뒿?덈떎. 湲곕낯 ?몄뒪?낆? ?꾨줈?앺듃 ?묎렐沅뚰븳, 濡쒓렇, 諛고룷 ?몄쬆?뺣낫, OAuth ?ㅼ젙怨?Sandbox ?앸챸二쇨린瑜?愿由ы븯??GPT Usage ?댁쁺?먮룄 ?좊ː?댁빞 ?⑸땲??
 
-## Known constraints
+## ?뚮젮吏??쒖빟
 
-- Device login relies on the official Codex CLI and Codex App Server account surface.
-- A sandbox whose persistent state expires or is deleted requires device authorization again.
-- Vercel Sandbox usage has compute and snapshot-storage costs.
-- Public plugin submission requires working OAuth, domain verification, privacy and terms URLs, support contact details, and review credentials where applicable.
-- Standard Chat message limits are separate from Work/Codex agent usage and are not returned.
+- 湲곌린 濡쒓렇?몄? 怨듭떇 Codex CLI? Codex App Server 怨꾩젙 湲곕뒫???섏〈?⑸땲??
+- Sandbox ?ㅻ깄?룹씠 留뚮즺?섍굅????젣?섎㈃ 湲곌린 ?몄쬆???ㅼ떆 ?댁빞 ?⑸땲??
+- Vercel Sandbox 而댄벂?낃낵 ?ㅻ깄?????鍮꾩슜??諛쒖깮?????덉뒿?덈떎.
+- 怨듦컻 諛고룷 ??OAuth, ?꾨찓??寃利? 媛쒖씤?뺣낫泥섎━諛⑹묠, ?댁슜?쎄?, 吏???곕씫泥섍? ?꾩슂?⑸땲??
+- ?쇰컲 Chat 硫붿떆吏 ?쒗븳? Work/Codex ?먯씠?꾪듃 ?ъ슜?됯낵 蹂꾧컻?대ŉ ???뚮윭洹몄씤??諛섑솚?섏? ?딆뒿?덈떎.
 
