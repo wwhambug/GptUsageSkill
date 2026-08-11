@@ -24,6 +24,10 @@ def find_codex() -> str:
     if override:
         return override
 
+    desktop_codex = find_running_desktop_codex()
+    if desktop_codex:
+        return desktop_codex
+
     names = ["codex"]
     if platform.system().lower().startswith("win"):
         names = ["codex.cmd", "codex.exe", "codex"]
@@ -34,6 +38,33 @@ def find_codex() -> str:
             return resolved
 
     raise RpcError("Codex CLI was not found on PATH. Install Codex or set CODEX_BIN.")
+
+
+def find_running_desktop_codex() -> str | None:
+    """Prefer the signed-in Codex desktop binary over a separate npm CLI."""
+    if not platform.system().lower().startswith("win"):
+        return None
+
+    command = (
+        "Get-Process -Name codex -ErrorAction SilentlyContinue | "
+        "Where-Object { $_.Path -like '*\\WindowsApps\\OpenAI.Codex_*\\app\\resources\\codex.exe' } | "
+        "Select-Object -First 1 -ExpandProperty Path"
+    )
+    try:
+        result = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-Command", command],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+    candidate = result.stdout.strip()
+    return candidate if result.returncode == 0 and candidate else None
 
 
 def send(proc: subprocess.Popen[str], message: dict[str, Any]) -> None:
@@ -268,3 +299,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
