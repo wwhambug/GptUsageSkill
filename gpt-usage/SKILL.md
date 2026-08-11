@@ -20,7 +20,7 @@ Report:
 
 If the script reports that Codex is not signed in, ask the user to run `codex login`. If it reports that `account/rateLimits/read` is unavailable, explain that their local Codex version or auth mode does not expose ChatGPT account rate limits.
 
-On Windows, allow the script to prefer the running Codex desktop app's bundled CLI so the desktop ChatGPT login is reused. Use `CODEX_BIN` only when an explicit binary override is needed.
+Allow the script to search running desktop apps, `PATH`, and common installation locations on Windows, macOS, and Linux. It tries every discovered Codex binary until authenticated account limits are returned. Use `CODEX_BIN` only when an explicit binary should be tried first.
 
 Never ask the user for tokens. Never open or print `auth.json`.
 
