@@ -12,6 +12,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 
@@ -19,40 +20,20 @@ class RpcError(RuntimeError):
     pass
 
 
-def find_codex() -> str:
-    override = os.environ.get("CODEX_BIN")
-    if override:
-        return override
+def _running_codex_paths() -> list[str]:
+    system = platform.system().lower()
+    if system.startswith("win"):
+        command = (
+            "Get-Process -Name codex -ErrorAction SilentlyContinue | "
+            "Where-Object Path | Select-Object -ExpandProperty Path"
+        )
+        argv = ["powershell.exe", "-NoProfile", "-Command", command]
+    else:
+        argv = ["ps", "-axo", "comm="]
 
-    desktop_codex = find_running_desktop_codex()
-    if desktop_codex:
-        return desktop_codex
-
-    names = ["codex"]
-    if platform.system().lower().startswith("win"):
-        names = ["codex.cmd", "codex.exe", "codex"]
-
-    for name in names:
-        resolved = shutil.which(name)
-        if resolved:
-            return resolved
-
-    raise RpcError("Codex CLI was not found on PATH. Install Codex or set CODEX_BIN.")
-
-
-def find_running_desktop_codex() -> str | None:
-    """Prefer the signed-in Codex desktop binary over a separate npm CLI."""
-    if not platform.system().lower().startswith("win"):
-        return None
-
-    command = (
-        "Get-Process -Name codex -ErrorAction SilentlyContinue | "
-        "Where-Object { $_.Path -like '*\\WindowsApps\\OpenAI.Codex_*\\app\\resources\\codex.exe' } | "
-        "Select-Object -First 1 -ExpandProperty Path"
-    )
     try:
         result = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-Command", command],
+            argv,
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -61,10 +42,126 @@ def find_running_desktop_codex() -> str | None:
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
-        return None
+        return []
 
-    candidate = result.stdout.strip()
-    return candidate if result.returncode == 0 and candidate else None
+    paths = []
+    for line in result.stdout.splitlines():
+        candidate = line.strip()
+        if candidate and "codex" in Path(candidate).name.lower():
+            paths.append(candidate)
+    return paths
+
+
+def _known_codex_paths() -> list[str]:
+    home = Path.home()
+    system = platform.system().lower()
+    paths: list[Path] = []
+
+    if system.startswith("win"):
+        local = Path(os.environ.get("LOCALAPPDATA", home / "AppData/Local"))
+        roaming = Path(os.environ.get("APPDATA", home / "AppData/Roaming"))
+        program_files = Path(os.environ.get("ProgramFiles", "C:/Program Files"))
+        paths.extend(
+            [
+                local / "Microsoft/WindowsApps/codex.exe",
+                local / "Programs/Codex/resources/codex.exe",
+                local / "Codex/resources/codex.exe",
+                roaming / "npm/codex.cmd",
+                roaming / "npm/codex.exe",
+                home / ".local/bin/codex.exe",
+                home / ".cargo/bin/codex.exe",
+                home / ".bun/bin/codex.exe",
+                local / "pnpm/codex.cmd",
+                program_files / "Codex/resources/codex.exe",
+            ]
+        )
+        try:
+            paths.extend(
+                program_files.glob("WindowsApps/OpenAI.Codex_*/app/resources/codex.exe")
+            )
+        except OSError:
+            pass
+    elif system == "darwin":
+        paths.extend(
+            [
+                Path("/Applications/Codex.app/Contents/Resources/codex"),
+                home / "Applications/Codex.app/Contents/Resources/codex",
+                home / "Library/Application Support/Codex/codex",
+                Path("/opt/homebrew/bin/codex"),
+                Path("/usr/local/bin/codex"),
+                home / "Library/pnpm/codex",
+            ]
+        )
+    else:
+        paths.extend(
+            [
+                Path("/opt/Codex/resources/codex"),
+                Path("/opt/Codex/codex"),
+                Path("/opt/codex/resources/codex"),
+                Path("/usr/lib/codex/resources/codex"),
+                Path("/usr/lib/codex/codex"),
+                Path("/usr/libexec/codex"),
+                Path("/usr/local/bin/codex"),
+                Path("/usr/bin/codex"),
+                Path("/snap/bin/codex"),
+                home / ".local/bin/codex",
+                home / ".local/share/Codex/resources/codex",
+            ]
+        )
+        uid = getattr(os, "getuid", lambda: 0)()
+        for mount_root in (Path("/tmp"), Path("/run/user") / str(uid)):
+            try:
+                paths.extend(mount_root.glob(".mount_*odex*/resources/codex"))
+            except OSError:
+                pass
+
+    paths.extend(
+        [
+            home / ".cargo/bin/codex",
+            home / ".npm-global/bin/codex",
+            home / ".local/share/pnpm/codex",
+            home / ".bun/bin/codex",
+            home / "node_modules/.bin/codex",
+        ]
+    )
+    for root in (home / ".nvm/versions/node", home / ".volta/tools/image/node"):
+        try:
+            paths.extend(root.glob("*/bin/codex"))
+        except OSError:
+            pass
+    return [str(path) for path in paths]
+
+
+def discover_codex_candidates() -> list[str]:
+    candidates: list[str] = []
+    override = os.environ.get("CODEX_BIN")
+    if override:
+        candidates.append(override)
+
+    candidates.extend(_running_codex_paths())
+
+    names = ["codex"]
+    if platform.system().lower().startswith("win"):
+        names = ["codex.cmd", "codex.exe", "codex"]
+    for name in names:
+        resolved = shutil.which(name)
+        if resolved:
+            candidates.append(resolved)
+
+    candidates.extend(_known_codex_paths())
+    deduplicated: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        expanded = str(Path(candidate).expanduser())
+        key = os.path.normcase(os.path.abspath(expanded))
+        try:
+            exists = Path(expanded).is_file()
+        except OSError:
+            exists = False
+        if key not in seen and exists:
+            seen.add(key)
+            deduplicated.append(expanded)
+    return deduplicated
 
 
 def send(proc: subprocess.Popen[str], message: dict[str, Any]) -> None:
@@ -118,8 +215,7 @@ def rpc_call(
     return recv_until_id(proc, request_id, timeout_seconds)
 
 
-def start_app_server() -> subprocess.Popen[str]:
-    codex = find_codex()
+def start_app_server(codex: str) -> subprocess.Popen[str]:
     return subprocess.Popen(
         [codex, "app-server", "--stdio"],
         stdin=subprocess.PIPE,
@@ -131,8 +227,8 @@ def start_app_server() -> subprocess.Popen[str]:
     )
 
 
-def read_codex_account() -> dict[str, Any]:
-    proc = start_app_server()
+def read_account_with(codex: str) -> dict[str, Any]:
+    proc = start_app_server(codex)
     try:
         rpc_call(
             proc,
@@ -155,6 +251,7 @@ def read_codex_account() -> dict[str, Any]:
             "account": account,
             "rate_limits": rate_limits,
             "source": "codex app-server account/rateLimits/read",
+            "codex_binary": codex,
         }
     finally:
         proc.terminate()
@@ -162,6 +259,22 @@ def read_codex_account() -> dict[str, Any]:
             proc.wait(timeout=3)
         except subprocess.TimeoutExpired:
             proc.kill()
+
+
+def read_codex_account() -> dict[str, Any]:
+    candidates = discover_codex_candidates()
+    if not candidates:
+        raise RpcError("Codex was not found in running apps, known install locations, or PATH.")
+
+    failures: list[str] = []
+    for candidate in candidates:
+        try:
+            return read_account_with(candidate)
+        except (OSError, RpcError) as exc:
+            failures.append(f"{candidate}: {exc}")
+
+    details = " | ".join(failures)
+    raise RpcError(f"No discovered Codex installation exposed account rate limits. {details}")
 
 
 def iso_from_unix(value: Any) -> str | None:
@@ -219,6 +332,7 @@ def normalize(data: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "source": data.get("source"),
+        "codex_binary": data.get("codex_binary"),
         "account": account_info,
         "requires_openai_auth": account.get("requiresOpenaiAuth") if isinstance(account, dict) else None,
         "buckets": buckets,
@@ -282,7 +396,16 @@ def format_summary(data: dict[str, Any]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Read ChatGPT/Codex usage from Codex app-server.")
     parser.add_argument("--json", action="store_true", help="Print normalized JSON.")
+    parser.add_argument(
+        "--list-candidates",
+        action="store_true",
+        help="List discovered Codex binaries without starting them.",
+    )
     args = parser.parse_args()
+
+    if args.list_candidates:
+        print("\n".join(discover_codex_candidates()))
+        return 0
 
     try:
         normalized = normalize(read_codex_account())
