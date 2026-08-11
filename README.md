@@ -1,44 +1,53 @@
 # GptUsageSkill
 
-GptUsageSkill is an Agent Skill that lets Codex report the current ChatGPT agent usage limits it can see for the signed-in account.
+Check the shared ChatGPT Work and Codex agent usage limit from the account already signed in to Codex.
 
-The first version targets the supported Codex App Server account surface:
+## Install and use
 
-- `account/read` for the active auth mode and plan
-- `account/rateLimits/read` for ChatGPT/Codex rate-limit buckets
-- `account/usage/read` for token-activity summaries when requested
-
-It avoids reading `~/.codex/auth.json` directly. Codex owns login, token storage, and refresh.
-
-## Install
-
-Copy or install the `gpt-usage/` folder as a Codex skill.
-
-For local testing, place it in one of Codex's skill locations, for example:
+Install the `gpt-usage/` folder as a Codex skill, for example at:
 
 ```text
 ~/.agents/skills/gpt-usage
 ```
 
-Then ask Codex:
+In ChatGPT Work, ask it to install the skill from `wwhambug/GptUsageSkill`. Then run:
 
 ```text
-$gpt-usage how much agent usage do I have left?
+$gpt-usage how much Work/Codex agent usage do I have left?
 ```
 
-## Requirements
+Example:
 
-- Codex CLI available on `PATH`
-- Signed in with ChatGPT through Codex (`codex login`)
-- A Codex version with `codex app-server` and `account/rateLimits/read`
+```text
+Account: chatgpt, plan=plus
+codex:
+  primary: 96% remaining (4% used), 10080 min window
+  secondary: not returned
+  credits: balance 0
+```
 
-The script searches across Windows, macOS, and Linux. It checks an explicit `CODEX_BIN`, running Codex desktop processes, `PATH`, desktop-app install locations, and common npm, pnpm, bun, Cargo, Homebrew, NVM, Volta, AppImage, and system install locations. Every discovered binary is tried until one exposes authenticated account rate limits, so a logged-out CLI does not hide a logged-in desktop installation.
+## How it works
 
-API-key-only and Bedrock auth do not provide ChatGPT account rate limits through this path.
+The single `gpt_usage.py` script discovers an authenticated Codex installation and calls the local Codex App Server account API:
 
-## Current Scope
+- `account/read` for the active account and plan
+- `account/rateLimits/read` for usage windows, reset times, and credits
 
-This v0.0.1 reports agent/Codex rate limits from the local Codex account surface. It does not yet provide a hosted ChatGPT Work plugin/MCP server, and it does not scrape private browser sessions.
+It searches Windows, macOS, and Linux across running desktop apps, `PATH`, and common desktop, npm, pnpm, bun, Cargo, Homebrew, NVM, Volta, AppImage, Snap, and system install locations. It tries every discovered binary until one returns authenticated account limits.
 
-ChatGPT Work and Codex share agentic usage limits, so this is the right first data source for the shared agent budget. Standard Chat message limits are a separate product surface and are not normalized in this version.
+**Security:** The skill never opens the token file or asks for OAuth credentials. Authentication and token refresh remain owned by Codex.
+
+## Verified surfaces
+
+- Codex desktop on Windows
+- ChatGPT Work hosted container with the current user's OAuth identity preserved
+
+ChatGPT Work and Codex use the same agent usage budget, so the returned `codex` bucket represents the shared Work/Codex allowance.
+
+## Limitations
+
+- Some accounts return only one rate-limit bucket; a secondary bucket may be absent.
+- API-key-only and Bedrock authentication do not expose ChatGPT account rate limits through this API.
+- Standard Chat message limits are separate from agent usage and are not reported.
+- The skill depends on Codex App Server account methods and may require updates if that interface changes.
 
