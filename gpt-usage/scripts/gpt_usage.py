@@ -10,6 +10,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +19,73 @@ from typing import Any
 
 class RpcError(RuntimeError):
     pass
+
+
+def bootstrap_root() -> Path:
+    override = os.environ.get("GPT_USAGE_CACHE")
+    return Path(override) if override else Path(tempfile.gettempdir()) / "gpt-usage-skill"
+
+
+def bootstrap_binary() -> Path:
+    name = "codex.cmd" if platform.system().lower().startswith("win") else "codex"
+    return bootstrap_root() / "node_modules" / ".bin" / name
+
+
+def codex_environment(codex: str) -> dict[str, str]:
+    env = os.environ.copy()
+    try:
+        Path(codex).resolve().relative_to(bootstrap_root().resolve())
+    except (OSError, ValueError):
+        return env
+
+    auth_dir = bootstrap_root() / "auth"
+    auth_dir.mkdir(parents=True, exist_ok=True)
+    env["CODEX_HOME"] = str(auth_dir)
+    return env
+
+
+def bootstrap_codex() -> str:
+    npm_names = ["npm.cmd", "npm"] if platform.system().lower().startswith("win") else ["npm"]
+    npm = next((resolved for name in npm_names if (resolved := shutil.which(name))), None)
+    if not npm:
+        raise RpcError(
+            "Codex is absent and npm is unavailable. This runtime cannot bootstrap the official @openai/codex package."
+        )
+
+    root = bootstrap_root()
+    root.mkdir(parents=True, exist_ok=True)
+    print(f"Installing the official @openai/codex package in temporary cache: {root}", flush=True)
+    result = subprocess.run(
+        [
+            npm,
+            "install",
+            "--prefix",
+            str(root),
+            "--no-save",
+            "--no-audit",
+            "--no-fund",
+            "@openai/codex@latest",
+        ],
+        check=False,
+    )
+    binary = bootstrap_binary()
+    if result.returncode != 0 or not binary.is_file():
+        raise RpcError("The official @openai/codex package could not be installed in the temporary cache.")
+    return str(binary)
+
+
+def device_login(codex: str) -> None:
+    print(
+        "Starting ChatGPT device login. Open the displayed URL and enter the code; this command will continue automatically.",
+        flush=True,
+    )
+    result = subprocess.run(
+        [codex, "login", "--device-auth"],
+        env=codex_environment(codex),
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RpcError("ChatGPT device login did not complete.")
 
 
 def _running_codex_paths() -> list[str]:
@@ -117,6 +185,7 @@ def _known_codex_paths() -> list[str]:
 
     paths.extend(
         [
+            bootstrap_binary(),
             home / ".cargo/bin/codex",
             home / ".npm-global/bin/codex",
             home / ".local/share/pnpm/codex",
@@ -218,6 +287,7 @@ def rpc_call(
 def start_app_server(codex: str) -> subprocess.Popen[str]:
     return subprocess.Popen(
         [codex, "app-server", "--stdio"],
+        env=codex_environment(codex),
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -401,11 +471,38 @@ def main() -> int:
         action="store_true",
         help="List discovered Codex binaries without starting them.",
     )
+    parser.add_argument(
+        "--device-login",
+        action="store_true",
+        help="Bootstrap Codex when needed, sign in with a device code, then read usage.",
+    )
+    parser.add_argument(
+        "--bootstrap-only",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
     args = parser.parse_args()
 
     if args.list_candidates:
         print("\n".join(discover_codex_candidates()))
         return 0
+
+
+    if args.bootstrap_only:
+        try:
+            print(bootstrap_codex())
+            return 0
+        except RpcError as exc:
+            print(f"GPT usage setup failed: {exc}", file=sys.stderr)
+            return 2
+
+    if args.device_login:
+        try:
+            codex = str(bootstrap_binary()) if bootstrap_binary().is_file() else bootstrap_codex()
+            device_login(codex)
+        except RpcError as exc:
+            print(f"GPT usage setup failed: {exc}", file=sys.stderr)
+            return 2
 
     try:
         normalized = normalize(read_codex_account())
