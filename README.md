@@ -1,63 +1,53 @@
-# GptUsageSkill
+# GPT Usage
 
-Check the shared ChatGPT Work and Codex agent usage limit from the account already signed in to Codex.
+GPT Usage is an MCP-backed ChatGPT plugin that reports the agent usage budget shared by ChatGPT Work and Codex on web, desktop, and mobile.
 
-## Install and use
-
-Install the `gpt-usage/` folder as a Codex skill, for example at:
-
-```text
-~/.agents/skills/gpt-usage
-```
-
-In ChatGPT Work, ask it to install the skill from `wwhambug/GptUsageSkill`. Then run:
-
-```text
-$gpt-usage how much Work/Codex agent usage do I have left?
-```
-
-Example:
-
-```text
-Account: chatgpt, plan=plus
-codex:
-  primary: 96% remaining (4% used), 10080 min window
-  secondary: not returned
-  credits: balance 0
-```
+The project is no longer distributed as a standalone skill. The plugin calls a remote MCP service, so mobile does not depend on a temporary Work container containing Codex or retaining its IP and filesystem.
 
 ## How it works
 
-The single `gpt_usage.py` script discovers an authenticated Codex installation and calls the local Codex App Server account API:
-
-- `account/read` for the active account and plan
-- `account/rateLimits/read` for usage windows, reset times, and credits
-
-It searches Windows, macOS, and Linux across running desktop apps, `PATH`, and common desktop, npm, pnpm, bun, Cargo, Homebrew, NVM, Volta, AppImage, Snap, and system install locations. It tries every discovered binary until one returns authenticated account limits.
-
-If a mobile or headless Work container has no Codex installation, the same file can bootstrap the official CLI and start device-code login:
-
 ```text
-python gpt_usage.py --device-login
+ChatGPT plugin
+  -> GPT Usage MCP on Vercel
+  -> persistent Vercel Sandbox for the OAuth subject
+  -> Codex App Server account/rateLimits/read
 ```
 
-The temporary CLI and Codex-managed login state are stored under the OS temporary directory, not in the repository. This fallback requires npm, outbound package access, and completion of the displayed ChatGPT device login.
+The plugin exposes four tools:
 
-**Security:** The skill never opens the token file or asks for OAuth credentials. Authentication and token refresh remain owned by Codex.
+- `connect_codex`: starts one-time ChatGPT device authorization
+- `connection_status`: checks whether authorization completed
+- `get_usage`: returns Work/Codex usage windows, resets, plan, and credits
+- `disconnect_codex`: removes the stored Codex login
 
-## Verified surfaces
+Each OAuth user gets an isolated persistent Vercel Sandbox. The sandbox installs the official `@openai/codex` package once and keeps Codex-managed login state across sessions. IP addresses are never used as identity.
 
-- Codex desktop on Windows
-- ChatGPT Work hosted container with the current user's OAuth identity preserved
-- Mobile/headless Work containers after temporary CLI bootstrap and device-code login, when the runtime permits npm and outbound access
+## Hosting
 
-ChatGPT Work and Codex use the same agent usage budget, so the returned `codex` bucket represents the shared Work/Codex allowance.
+- **Default hosting:** use the maintainer-operated MCP URL from the plugin manifest.
+- **Self-hosting:** deploy this repository to your own Vercel project and point `.mcp.json` at that deployment.
 
-## Limitations
+See [HOSTING.md](HOSTING.md) for setup, authentication, security, and operational differences.
 
-- Some accounts return only one rate-limit bucket; a secondary bucket may be absent.
-- API-key-only and Bedrock authentication do not expose ChatGPT account rate limits through this API.
-- Standard Chat message limits are separate from agent usage and are not reported.
-- The skill depends on Codex App Server account methods and may require updates if that interface changes.
-- Mobile fallback cannot run in containers that block npm, outbound network access, or device authentication.
+## Development
+
+```text
+npm install
+npm run typecheck
+npm run build
+```
+
+Required production configuration is listed in [.env.example](.env.example).
+
+## Security
+
+- The MCP server identifies users from a verified OAuth JWT subject, never an IP address.
+- Codex credentials remain inside the user's isolated persistent Sandbox filesystem.
+- Tool responses omit email addresses and authentication material.
+- Device authorization is completed directly on OpenAI's authorization page.
+- The hosting operator still controls the Vercel project and must be treated as a credential custodian. Use self-hosting when that trust model is unacceptable.
+
+## Status
+
+The plugin package, OAuth resource metadata, MCP tools, persistent Sandbox orchestration, device-login flow, and usage reader are implemented. Production default hosting still requires the maintainer's Auth0 tenant and final Vercel deployment configuration.
 

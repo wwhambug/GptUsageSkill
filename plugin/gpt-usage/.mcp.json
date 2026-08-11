@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "gpt-usage": {
+      "url": "https://gpt-usage.vercel.app/api/mcp",
+      "auth": "oauth"
+    }
+  }
+}
+

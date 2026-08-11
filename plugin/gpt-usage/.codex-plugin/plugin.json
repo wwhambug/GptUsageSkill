@@ -1,0 +1,27 @@
+{
+  "name": "gpt-usage",
+  "version": "0.1.0",
+  "description": "Check shared ChatGPT Work and Codex agent usage from any ChatGPT surface.",
+  "author": {
+    "name": "wwhambug",
+    "url": "https://github.com/wwhambug/GptUsageSkill"
+  },
+  "homepage": "https://github.com/wwhambug/GptUsageSkill",
+  "repository": "https://github.com/wwhambug/GptUsageSkill",
+  "license": "MIT",
+  "keywords": ["usage", "codex", "chatgpt-work"],
+  "interface": {
+    "displayName": "GPT Usage",
+    "shortDescription": "Check shared Work and Codex usage limits.",
+    "longDescription": "Connect a ChatGPT account once, then check shared ChatGPT Work and Codex agent usage from web, desktop, or mobile.",
+    "developerName": "wwhambug",
+    "category": "Productivity",
+    "capabilities": ["Read"],
+    "defaultPrompt": [
+      "Check my remaining Work and Codex agent usage.",
+      "Connect my Codex account to GPT Usage."
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}
+
