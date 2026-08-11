@@ -32,7 +32,7 @@ $gpt-usage how much agent usage do I have left?
 - Signed in with ChatGPT through Codex (`codex login`)
 - A Codex version with `codex app-server` and `account/rateLimits/read`
 
-On Windows, the script first looks for the Codex desktop app's bundled CLI. This lets it reuse the desktop app's ChatGPT login even when a separately installed npm CLI is logged out. Set `CODEX_BIN` to override automatic discovery.
+The script searches across Windows, macOS, and Linux. It checks an explicit `CODEX_BIN`, running Codex desktop processes, `PATH`, desktop-app install locations, and common npm, pnpm, bun, Cargo, Homebrew, NVM, Volta, AppImage, and system install locations. Every discovered binary is tried until one exposes authenticated account rate limits, so a logged-out CLI does not hide a logged-in desktop installation.
 
 API-key-only and Bedrock auth do not provide ChatGPT account rate limits through this path.
 
