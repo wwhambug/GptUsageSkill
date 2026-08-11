@@ -1,0 +1,4 @@
+interface:
+  display_name: "GPT Usage"
+  short_description: "Check remaining ChatGPT agent and Codex usage limits."
+  default_prompt: "Check my remaining agent usage and reset times."
